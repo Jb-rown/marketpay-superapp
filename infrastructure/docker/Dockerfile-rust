@@ -1,0 +1,6 @@
+FROM rust:1.76
+WORKDIR /app
+COPY ../../rust-services/wallet-service/ .
+RUN cargo build --release
+EXPOSE 3001
+CMD ["cargo", "run"]
