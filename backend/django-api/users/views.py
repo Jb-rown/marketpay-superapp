@@ -1,9 +1,9 @@
 from django.shortcuts import render
 
-# Create your views here.
-from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework import generics
+from .models import User
+from .serializers import RegisterSerializer
 
-@api_view(['GET'])
-def test_api(request):
-    return Response({"message": "Django API working 🚀"})
+class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = RegisterSerializer
