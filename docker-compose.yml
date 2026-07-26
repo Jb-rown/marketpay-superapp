@@ -1,0 +1,86 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: marketpay-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-marketpay}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - superapp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  django-api:
+    build:
+      context: ./backend/django-api
+      dockerfile: Dockerfile
+    container_name: marketpay-django
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=${DEBUG:-False}
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-marketpay}
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/django-api:/app
+    networks:
+      - superapp-network
+    restart: unless-stopped
+
+  wallet-service:
+    build:
+      context: ./backend/rust-services/wallet-service
+      dockerfile: Dockerfile
+    container_name: marketpay-wallet
+    ports:
+      - "3001:3000"
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-marketpay}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - superapp-network
+    restart: unless-stopped
+
+  nextjs-frontend:
+    build:
+      context: ./frontend/web-nextjs
+      dockerfile: Dockerfile
+    container_name: marketpay-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_WALLET_API=${NEXT_PUBLIC_WALLET_API:-http://localhost:3001}
+      - NODE_ENV=${NODE_ENV:-production}
+    depends_on:
+      - django-api
+    networks:
+      - superapp-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  superapp-network:
+    driver: bridge
