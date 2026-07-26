@@ -1,34 +1,108 @@
-version: '3.8'
+version: '3.9'
 
 services:
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
+    container_name: marketpay-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: marketpay
+      POSTGRES_DB: ${POSTGRES_DB:-marketpay}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - superapp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
-    image: redis:7
+    image: redis:7-alpine
+    container_name: marketpay-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - superapp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   django-api:
-    build: ./docker/Dockerfile-django
+    build:
+      context: ../../backend/django-api
+      dockerfile: Dockerfile
+    container_name: marketpay-django
     ports:
       - "8000:8000"
+    environment:
+      - DEBUG=${DEBUG:-False}
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-marketpay}
+      - SECRET_KEY=${DJANGO_SECRET_KEY:-change-me-in-production}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../../backend/django-api:/app
+    networks:
+      - superapp-network
+    restart: unless-stopped
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 4
 
-  rust-wallet:
-    build: ./docker/Dockerfile-rust
+  wallet-service:
+    build:
+      context: ../../backend/rust-services/wallet-service
+      dockerfile: Dockerfile
+    container_name: marketpay-wallet
     ports:
-      - "3001:3001"
+      - "3001:3000"
+    environment:
+      - RUST_LOG=${RUST_LOG:-info}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-marketpay}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - superapp-network
+    restart: unless-stopped
 
-  nextjs-web:
-    build: ./docker/Dockerfile-nextjs
+  nextjs-frontend:
+    build:
+      context: ../../frontend/web-nextjs
+      dockerfile: Dockerfile
+    container_name: marketpay-frontend
     ports:
       - "3000:3000"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - NEXT_PUBLIC_WALLET_API=${NEXT_PUBLIC_WALLET_API:-http://localhost:3001}
+    depends_on:
+      - django-api
+    networks:
+      - superapp-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  superapp-network:
+    driver: bridge

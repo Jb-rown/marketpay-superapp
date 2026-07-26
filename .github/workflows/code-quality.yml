@@ -1,0 +1,71 @@
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run SonarQube Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  dependency-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Check Python dependencies
+        run: |
+          pip install safety
+          cd backend/django-api
+          safety check -r requirements.txt || true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check npm dependencies
+        run: |
+          cd frontend/web-nextjs
+          npm audit --audit-level=moderate || true
+
+      - name: Check Rust dependencies
+        run: |
+          cd backend/rust-services/wallet-service
+          cargo outdated
+
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if README exists
+        run: |
+          if [ ! -f README.md ]; then
+            echo "README.md is missing!"
+            exit 1
+          fi
+
+      - name: Check documentation completeness
+        run: |
+          # Check if key docs exist
+          if [ ! -f docs/API.md ]; then echo "docs/API.md missing"; exit 1; fi
+          if [ ! -f docs/Setup.md ]; then echo "docs/Setup.md missing"; exit 1; fi
+          if [ ! -f DOCKER_SETUP_GUIDE.md ]; then echo "DOCKER_SETUP_GUIDE.md missing"; exit 1; fi
