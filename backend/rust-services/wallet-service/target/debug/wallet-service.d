@@ -1,1 +1,1 @@
-C:\Users\jouma\Desktop\marketpay-superapp\backend\rust-services\wallet-service\target\debug\wallet-service.exe: C:\Users\jouma\Desktop\marketpay-superapp\backend\rust-services\wallet-service\src\main.rs
+C:\Users\jouma\Downloads\marketpay-superapp\backend\rust-services\wallet-service\target\debug\wallet-service.exe: C:\Users\jouma\Downloads\marketpay-superapp\backend\rust-services\wallet-service\src\main.rs

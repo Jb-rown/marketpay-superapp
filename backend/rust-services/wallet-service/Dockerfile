@@ -1,10 +1,11 @@
 # Multi-stage Rust build
-FROM rust:1.75 AS builder
+FROM rust:1.85 AS builder
 
 WORKDIR /app
 
 # Copy manifest files first to cache dependencies
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml .
+COPY Cargo.lock* .
 
 # Create a dummy main to cache dependencies
 RUN mkdir src && echo 'fn main() {}' > src/main.rs && cargo build --release
