@@ -97,7 +97,6 @@ jobs:
  
   # SECURITY SCANNING
  
-
   security-scan:
     name: Security Scanning
     runs-on: ubuntu-latest
@@ -123,7 +122,6 @@ jobs:
  
   # BUILD DOCKER IMAGES
  
-
   build-images:
     name: Build Docker Images
     needs: [build-backend, build-frontend, build-rust, security-scan]
