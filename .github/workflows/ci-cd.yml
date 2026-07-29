@@ -222,59 +222,59 @@ jobs:
 
   # DEPLOY TO STAGING
 
-  # deploy-staging:
-  #   name: Deploy to Staging
-  #   needs: build-images
-  #   if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
-  #   runs-on: ubuntu-latest
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build-images
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - name: Configure kubectl
-  #       run: |
-  #         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
 
-  #     - name: Deploy to Kubernetes
-  #       env:
-  #         KUBECONFIG: kubeconfig.yaml
-  #       run: |
-  #         kubectl apply \
-  #           -f infrastructure/kubernetes/deployment.yaml \
-  #           --context=staging
+      - name: Deploy to Kubernetes
+        env:
+          KUBECONFIG: kubeconfig.yaml
+        run: |
+          kubectl apply \
+            -f infrastructure/kubernetes/deployment.yaml \
+            --context=staging
 
-  #     - name: Wait for rollout
-  #       env:
-  #         KUBECONFIG: kubeconfig.yaml
-  #       run: |
-  #         kubectl rollout status \
-  #           deployment/django-api \
-  #           -n marketpay \
-  #           --context=staging
+      - name: Wait for rollout
+        env:
+          KUBECONFIG: kubeconfig.yaml
+        run: |
+          kubectl rollout status \
+            deployment/django-api \
+            -n marketpay \
+            --context=staging
 
-  # # DEPLOY TO PRODUCTION
+  # DEPLOY TO PRODUCTION
 
-  # deploy-production:
-  #   name: Deploy to Production
-  #   needs: build-images
-  #   if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-  #   runs-on: ubuntu-latest
-  #   environment: production
+  deploy-production:
+    name: Deploy to Production
+    needs: build-images
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
 
-  #   steps:
-  #     - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - name: Configure kubectl
-  #       run: |
-  #         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig.yaml
 
-  #     - name: Deploy to Kubernetes
-  #       env:
-  #         KUBECONFIG: kubeconfig.yaml
-  #       run: |
-  #         kubectl apply \
-  #           -f infrastructure/kubernetes/deployment.yaml \
-  #           --context=production
+      - name: Deploy to Kubernetes
+        env:
+          KUBECONFIG: kubeconfig.yaml
+        run: |
+          kubectl apply \
+            -f infrastructure/kubernetes/deployment.yaml \
+            --context=production
 
       - name: Wait for rollout
         env:
