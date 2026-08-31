@@ -1,8 +1,34 @@
 import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
 import { Slot } from "radix-ui"
 
 import { cn } from "@/lib/utils"
+
+type VariantDefinitions = Record<string, Record<string, string>>
+type VariantValues<V extends VariantDefinitions> = {
+  [K in keyof V]?: keyof V[K] | null
+}
+type VariantProps<T> = T extends { __variantProps?: infer P } ? P : never
+
+function cva<V extends VariantDefinitions>(
+  base: string,
+  config: {
+    variants: V
+    defaultVariants?: VariantValues<V>
+  }
+) {
+  type Props = VariantValues<V> & { className?: string }
+
+  const variantClasses = (props: Props = {}) => {
+    const classes = Object.keys(config.variants).map((key) => {
+      const value = props[key] ?? config.defaultVariants?.[key]
+      return value == null ? undefined : config.variants[key][String(value)]
+    })
+
+    return [base, ...classes, props.className].filter(Boolean).join(" ")
+  }
+
+  return variantClasses as typeof variantClasses & { __variantProps?: VariantValues<V> }
+}
 
 const buttonVariants = cva(
   "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
