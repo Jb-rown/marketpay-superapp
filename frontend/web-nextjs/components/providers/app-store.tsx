@@ -15,6 +15,7 @@ type AppStore = {
   notifications: NotificationItem[];
   unreadCount: number;
   markAllRead: () => void;
+  markRead: (id: string) => void;
   pushNotificationsEnabled: boolean;
   setPushNotificationsEnabled: (value: boolean) => void;
 };
@@ -22,12 +23,15 @@ type AppStore = {
 const StoreContext = createContext<AppStore | null>(null);
 
 const CART_KEY = "marketpay.demo.cart";
+const NOTIFICATIONS_KEY = "marketpay.demo.notifications";
+const PREFERENCES_KEY = "marketpay.demo.notification-preferences";
 
 export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartHydrated, setCartHydrated] = useState(false);
   const [notifications, setNotifications] = useState(seedNotifications);
   const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(true);
+  const [notificationsHydrated,setNotificationsHydrated] = useState(false);
 
   useEffect(() => {
     try {
@@ -46,6 +50,21 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       // Demo mode tolerates unavailable local storage.
     }
   }, [cart, cartHydrated]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(NOTIFICATIONS_KEY);
+      if (stored) { const parsed=JSON.parse(stored); if(Array.isArray(parsed)) setNotifications(parsed); }
+      const prefs=localStorage.getItem(PREFERENCES_KEY);
+      if(prefs!==null) setPushNotificationsEnabled(prefs==="true");
+    } catch { /* Local storage can be unavailable in restricted browsers. */ }
+    finally { setNotificationsHydrated(true); }
+  }, []);
+  useEffect(() => {
+    if(!notificationsHydrated)return;
+    try { localStorage.setItem(NOTIFICATIONS_KEY,JSON.stringify(notifications)); localStorage.setItem(PREFERENCES_KEY,String(pushNotificationsEnabled)); }
+    catch { /* Local storage can be unavailable. */ }
+  },[notifications,notificationsHydrated,pushNotificationsEnabled]);
 
   const value = useMemo<AppStore>(() => ({
     cart,
@@ -71,6 +90,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     markAllRead() {
       setNotifications((current) => current.map((item) => ({ ...item, read: true })));
     },
+    markRead(id) { setNotifications(current=>current.map(item=>item.id===id?{...item,read:true}:item)); },
     pushNotificationsEnabled,
     setPushNotificationsEnabled
   }), [cart, notifications, pushNotificationsEnabled]);

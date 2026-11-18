@@ -12,6 +12,10 @@ import { SectionHeader } from "@/components/shared/section";
 import { Status } from "@/components/shared/status";
 import { products, vendorOrders, volumeSeries } from "@/lib/mock-data";
 import { formatKES } from "@/lib/utils";
+import { useFeedback } from "@/components/shared/feedback";
+import { downloadCsv } from "@/lib/download";
+import { parseCsv } from "@/lib/csv";
+import { useDemoState } from "@/hooks/use-demo-state";
 
 export function VendorWorkspace({ section }: { section: string }) {
   if (section === "products") return <Products />;
@@ -70,6 +74,8 @@ function Products() {
   const [drafts, setDrafts] = useState<{id:string;name:string;category:string;unit:string;price:number;stock:number}[]>([]);
   const [form, setForm] = useState({name:"",category:"Grain",unit:"kg",price:0,stock:0});
   const [saved, setSaved] = useState(false);
+  const [images,setImages]=useState<string[]>([]);
+  const {notify}=useFeedback();
   const visible = useMemo(() => [...products,...drafts.map(d=>({...d,vendor:"Wakulima Fresh",market:"Wakulima",marketAverage:d.price,distanceKm:0,rating:0}))].filter((p) => `${p.name} ${p.category}`.toLowerCase().includes(query.toLowerCase())), [query,drafts]);
   const saveDraft = () => { if (!form.name.trim() || form.price <= 0 || form.stock < 0) return; setDrafts(old=>[{id:`DRAFT-${Date.now()}`,...form,name:form.name.trim()},...old]);setOpen(false);setSaved(true);setForm({name:"",category:"Grain",unit:"kg",price:0,stock:0}); };
 
@@ -100,7 +106,7 @@ function Products() {
           <div><label className="mp-label">Quantity</label><input className="mp-input" type="number" min="0" placeholder="0" value={form.stock} onChange={e=>setForm(v=>({...v,stock:Number(e.target.value)}))}/></div>
           <div className="sm:col-span-2">
             <label className="mp-label">Product images · max 5</label>
-            <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center"><div><ImagePlus className="mx-auto h-6 w-6 text-slate-400" /><p className="mt-2 text-xs font-semibold text-slate-600">Drop images or click to browse</p><p className="text-[10px] text-slate-400">Up to 5MB each</p></div></div>
+            <label htmlFor="product-images" className="block rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center"><ImagePlus className="mx-auto h-6 w-6 text-slate-500"/><span className="mt-2 block text-xs font-semibold">Choose up to five product images</span><span className="block text-xs text-slate-600">PNG, JPG or WEBP, up to 5MB each (local preview)</span><input id="product-images" type="file" accept="image/png,image/jpeg,image/webp" multiple className="mt-3 block w-full text-xs" onChange={e=>{const files=Array.from(e.target.files||[]);if(files.length>5||files.some(file=>file.size>5*1024*1024)){notify("Choose at most five images, each under 5MB.","warning");return;}setImages(files.map(file=>file.name));}}/></label>{images.length>0&&<p role="status" className="mt-1 text-xs text-slate-600">Selected: {images.join(", ")} (not uploaded)</p>}
           </div>
           <div className="sm:col-span-2 rounded-xl border border-brand-200 bg-brand-50 p-3">
             <p className="text-xs font-bold text-brand-900">AI pricing preview</p><p className="mt-1 text-xs text-brand-800">Market Average and Recommended Range appear after product and price entry.</p>
@@ -112,23 +118,19 @@ function Products() {
 }
 
 function Inventory() {
-  const threshold = 100;
-  return (
-    <div className="space-y-5">
-      <SectionHeader title="Inventory management" description="Stock changes from confirmed orders are reflected here, with configurable low-stock thresholds." />
-      <div className="grid gap-4 sm:grid-cols-3">
-        <MetricCard label="Units in stock" value="1,649" icon={<Warehouse className="h-5 w-5" />} />
-        <MetricCard label="Low-stock listings" value="3" tone="amber" detail="Threshold ≤ 100" icon={<AlertTriangle className="h-5 w-5" />} />
-        <MetricCard label="Out of stock" value="1" tone="purple" icon={<Boxes className="h-5 w-5" />} />
-      </div>
-      <div className="mp-table-wrap">
-        <table className="mp-table">
-          <thead><tr><th>Product</th><th>Available</th><th>Threshold</th><th>Health</th><th>Action</th></tr></thead>
-          <tbody>{products.slice(0, 8).map((p) => <tr key={p.id}><td className="font-bold">{p.name}</td><td>{p.stock} {p.unit}</td><td>{threshold}</td><td><Status value={p.stock === 0 ? "OUT_OF_STOCK" : p.stock <= threshold ? "LOW_STOCK" : "HEALTHY"} /></td><td><button className="text-xs font-bold text-brand-700">Adjust stock</button></td></tr>)}</tbody>
-        </table>
-      </div>
-    </div>
-  );
+  const threshold=100;
+  const [stock,setStock]=useDemoState<Record<string,number>>("vendor.stock",{});
+  const [selected,setSelected]=useState<string|null>(null);
+  const [value,setValue]=useState("");
+  const {notify}=useFeedback();
+  const items=products.slice(0,8);
+  const current=(id:string,original:number)=>stock[id]??original;
+  return <div className="space-y-5">
+    <SectionHeader title="Inventory management" description="Adjust sample stock levels and preview low-stock warnings. Values are saved only in this browser." />
+    <div className="grid gap-4 sm:grid-cols-3"><MetricCard label="Units in stock" value={String(items.reduce((sum,item)=>sum+current(item.id,item.stock),0))} icon={<Warehouse className="h-5 w-5"/>}/><MetricCard label="Low-stock listings" value={String(items.filter(item=>current(item.id,item.stock)>0&&current(item.id,item.stock)<=threshold).length)} tone="amber"/><MetricCard label="Out of stock" value={String(items.filter(item=>current(item.id,item.stock)===0).length)} tone="purple"/></div>
+    <div className="mp-table-wrap"><table className="mp-table"><thead><tr><th>Product</th><th>Available</th><th>Threshold</th><th>Health</th><th>Action</th></tr></thead><tbody>{items.map(p=>{const count=current(p.id,p.stock);return <tr key={p.id}><td className="font-bold">{p.name}</td><td>{count} {p.unit}</td><td>{threshold}</td><td><Status value={count===0?"OUT_OF_STOCK":count<=threshold?"LOW_STOCK":"HEALTHY"}/></td><td><button onClick={()=>{setSelected(p.id);setValue(String(count));}} className="text-xs font-bold text-blue-700 underline underline-offset-2">Adjust stock</button></td></tr>;})}</tbody></table></div>
+    <Modal open={selected!==null} onClose={()=>setSelected(null)} title="Adjust inventory" description="This updates the UI preview only, not your published stock." footer={<><button className="mp-btn-secondary" onClick={()=>setSelected(null)}>Cancel</button><button className="mp-btn-primary" disabled={!/^\d+$/.test(value)||Number(value)>1000000} onClick={()=>{if(selected!==null){setStock(previous=>({...previous,[selected]:Number(value)}));notify("Demo stock adjustment saved.","success");setSelected(null);}}}>Save stock</button></>}><label className="mp-label" htmlFor="inventory-quantity">Quantity available</label><input id="inventory-quantity" className="mp-input" type="number" min={0} step={1} max={1000000} value={value} onChange={e=>setValue(e.target.value)}/></Modal>
+  </div>;
 }
 
 function Orders() {
@@ -155,7 +157,7 @@ function Orders() {
 function Analytics() {
   return (
     <div className="space-y-5">
-      <SectionHeader title="Vendor analytics" description="Sales, fulfilment, product performance and customer rating signals." action={<button className="mp-btn-secondary"><Download className="h-4 w-4" /> Export CSV</button>} />
+      <SectionHeader title="Vendor analytics" description="Sales, fulfilment, product performance and customer rating signals." action={<button onClick={()=>downloadCsv("MarketPay-demo-vendor-analytics.csv",["Metric","Value"],[["30-day revenue KES",1280000],["Orders",742],["Average order value KES",1725],["Completion rate %",96.4]])} className="mp-btn-secondary"><Download className="h-4 w-4" /> Export CSV</button>} />
       <div className="grid gap-4 sm:grid-cols-4">
         <MetricCard label="30-day revenue" value="KES 1.28M" detail="+9.8%" trend="up" />
         <MetricCard label="Orders" value="742" tone="blue" />
@@ -172,27 +174,30 @@ function Analytics() {
 
 function Storefront() {
   const [published, setPublished] = useState(true);
+  const [store,setStore]=useDemoState("vendor.storefront",{name:"Wakulima Fresh",description:"Fresh grains, vegetables and pantry staples sourced from trusted Kenyan growers.",market:"Wakulima Market, Nairobi"});
+  const [logo,setLogo]=useState("");
+  const {notify}=useFeedback();
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
       <Card className="p-5">
         <SectionHeader title="Storefront customization" description="Maintain business identity, description, logo and market location." />
         <div className="mt-5 space-y-4">
-          <div><label className="mp-label">Store name</label><input className="mp-input" defaultValue="Wakulima Fresh" /></div>
-          <div><label className="mp-label">Description</label><textarea className="mp-textarea" defaultValue="Fresh grains, vegetables and pantry staples sourced from trusted Kenyan growers." /></div>
-          <div><label className="mp-label">Market location</label><input className="mp-input" defaultValue="Wakulima Market, Nairobi" /></div>
-          <div><label className="mp-label">Logo</label><div className="grid min-h-24 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50"><div className="text-center"><UploadCloud className="mx-auto h-5 w-5 text-slate-400" /><p className="mt-2 text-xs font-semibold">Upload store logo</p><p className="text-[10px] text-slate-400">Rendered as 200×200px</p></div></div></div>
+          <div><label className="mp-label">Store name</label><input className="mp-input" required value={store.name} onChange={e=>setStore(old=>({...old,name:e.target.value}))}/></div>
+          <div><label className="mp-label">Description</label><textarea className="mp-textarea" value={store.description} onChange={e=>setStore(old=>({...old,description:e.target.value}))}/></div>
+          <div><label className="mp-label">Market location</label><input className="mp-input" value={store.market} onChange={e=>setStore(old=>({...old,market:e.target.value}))}/></div>
+          <div><label className="mp-label" htmlFor="store-logo">Store logo</label><input id="store-logo" type="file" accept="image/png,image/jpeg,image/webp" className="mp-input h-auto py-3" onChange={e=>{const file=e.target.files?.[0];if(file){if(file.size>5*1024*1024){notify("Logo must be less than 5MB.","warning");return;}setLogo(file.name);}}}/>{logo&&<p role="status" className="mt-1 text-xs text-slate-600">Selected: {logo} (not uploaded)</p>}</div>
           <Toggle checked={published} onChange={setPublished} label="Storefront visible to consumers" />
-          <button className="mp-btn-primary">Save storefront</button>
+          <button disabled={!store.name.trim()||!store.market.trim()} onClick={()=>notify("Storefront preview saved in this browser. No public listing has changed.","success")} className="mp-btn-primary">Save storefront preview</button>
         </div>
       </Card>
       <Card className="h-fit overflow-hidden">
         <div className="h-28 bg-gradient-to-br from-brand-700 to-navy-900" />
         <div className="-mt-10 p-5">
           <div className="grid h-20 w-20 place-items-center rounded-2xl border-4 border-white bg-brand-100 text-xl font-black text-brand-700 shadow">WF</div>
-          <h3 className="mt-3 text-xl font-black">Wakulima Fresh</h3>
-          <p className="mt-1 text-sm text-slate-500">Wakulima Market, Nairobi</p>
+          <h3 className="mt-3 text-xl font-black">{store.name}</h3>
+          <p className="mt-1 text-sm text-slate-500">{store.market}</p>
           <div className="mt-3 flex gap-2"><Badge tone="success">KYC VERIFIED</Badge><Badge tone="brand">4.82 rating</Badge></div>
-          <p className="mt-4 text-sm leading-6 text-slate-600">Fresh grains, vegetables and pantry staples sourced from trusted Kenyan growers.</p>
+          <p className="mt-4 text-sm leading-6 text-slate-600">{store.description}</p>
         </div>
       </Card>
     </div>
@@ -200,22 +205,35 @@ function Storefront() {
 }
 
 function CsvImport() {
-  const [uploaded, setUploaded] = useState(false);
-  return (
-    <div className="space-y-5">
-      <SectionHeader title="Bulk product import" description="Upload the product CSV template, review row-level validation, then create valid rows as DRAFT listings." action={<button className="mp-btn-secondary"><Download className="h-4 w-4" /> Download template</button>} />
-      <Card className="p-6">
-        <button onClick={() => setUploaded(true)} className="grid min-h-64 w-full place-items-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/70 text-center transition hover:border-brand-400 hover:bg-brand-50/40">
-          <div><FileUp className="mx-auto h-10 w-10 text-brand-600" /><h3 className="mt-4 font-black">Drop your CSV here</h3><p className="mt-1 text-sm text-slate-500">or click to browse files</p><p className="mt-3 text-xs text-slate-400">Required columns: name, category, unit, price, quantity</p></div>
-        </button>
-      </Card>
-      {uploaded && (
-        <Card className="p-5">
-          <div className="flex items-center gap-3"><div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-700"><CheckCircle2 className="h-5 w-5" /></div><div><p className="font-bold">Import validation complete</p><p className="text-xs text-slate-500">products_august.csv · 46 rows checked</p></div></div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3"><MetricCard label="Rows checked" value="46" /><MetricCard label="Valid" value="43" tone="emerald" /><MetricCard label="Failed" value="3" tone="amber" /></div>
-          <div className="mt-4 mp-table-wrap"><table className="mp-table"><thead><tr><th>Row</th><th>Product</th><th>Issue</th></tr></thead><tbody><tr><td>12</td><td>Tomatoes</td><td><Badge tone="danger">Missing quantity</Badge></td></tr><tr><td>27</td><td>Cooking Oil</td><td><Badge tone="danger">Invalid category</Badge></td></tr><tr><td>41</td><td>Rice 5kg</td><td><Badge tone="danger">Price must be positive</Badge></td></tr></tbody></table></div>
-        </Card>
-      )}
-    </div>
-  );
+  const [name,setName]=useState("");
+  const [rows,setRows]=useState<{line:number;product:string;issue:string}[]>([]);
+  const [validCount,setValidCount]=useState(0);
+  const [parsed,setParsed]=useState(false);
+  const {notify}=useFeedback();
+  async function handleFile(file:File|null){
+    if(!file)return;
+    setName(file.name);setParsed(false);
+    if(file.size>1024*1024){notify("Please select a CSV smaller than 1MB.","warning");return;}
+    try {
+      const data=parseCsv(await file.text());
+      const head=(data.shift()||[]).map(x=>x.toLowerCase());
+      const expected=["name","category","unit","price","quantity"];
+      if(expected.some(h=>!head.includes(h)))throw new Error("Missing required columns. Use the downloadable template.");
+      const categories=["grain","vegetable","fruit","protein","dairy","general"];
+      const result=data.map((row,index)=>{
+        const get=(header:string)=>row[head.indexOf(header)]?.trim()||"";
+        const product=get("name"),price=Number(get("price")),quantity=Number(get("quantity"));
+        const issue=!product?"Missing product name":!categories.includes(get("category").toLowerCase())?"Invalid category":!get("unit")?"Missing unit":!Number.isFinite(price)||price<=0?"Price must be positive":!/^\d+$/.test(get("quantity"))||quantity<0?"Quantity must be a whole number":"";
+        return {line:index+2,product,issue};
+      });
+      setRows(result);setValidCount(result.filter(r=>!r.issue).length);setParsed(true);
+      notify(`${result.length} CSV rows checked; ${result.filter(r=>!!r.issue).length} need attention.`,"info");
+    }catch(error){setRows([]);setValidCount(0);notify(error instanceof Error?error.message:"Unable to read this CSV.","error");}
+  }
+  return <div className="space-y-5"><SectionHeader title="Bulk product import" description="Select a CSV to validate its rows locally. No products are published from this screen." action={<button onClick={()=>downloadCsv("MarketPay-product-import-template.csv",["name","category","unit","price","quantity"],[["Dry maize","Grain","kg",82,100]])} className="mp-btn-secondary"><Download className="h-4 w-4"/> Download template</button>}/>
+    <Card className="p-6"><label htmlFor="catalog-file" className="block rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center"><FileUp className="mx-auto h-10 w-10 text-blue-700"/><span className="mt-3 block font-bold">Choose a product CSV</span><span className="mt-1 block text-sm text-slate-600">Required: name, category, unit, price, quantity (max 1MB)</span><input id="catalog-file" type="file" accept=".csv,text/csv" className="mt-4 max-w-full text-sm" onChange={e=>void handleFile(e.target.files?.[0]||null)}/></label></Card>
+    {parsed&&<Card className="p-5"><p role="status" className="font-semibold">{name} · {rows.length} rows checked</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><MetricCard label="Rows checked" value={String(rows.length)}/><MetricCard label="Valid" value={String(validCount)} tone="emerald"/><MetricCard label="Needs attention" value={String(rows.length-validCount)} tone="amber"/></div>
+      <div className="mp-table-wrap mt-4"><table className="mp-table"><thead><tr><th>CSV row</th><th>Product</th><th>Validation</th></tr></thead><tbody>{rows.map(row=><tr key={row.line}><td>{row.line}</td><td>{row.product||"(Unnamed)"}</td><td><Badge tone={row.issue?"danger":"success"}>{row.issue||"Valid"}</Badge></td></tr>)}</tbody></table></div>
+      <p className="mt-3 text-xs text-slate-600">Validation is local only; publishing requires a verified retailer account and the marketplace service.</p></Card>}
+  </div>;
 }

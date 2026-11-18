@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { FeedbackProvider } from "@/components/shared/feedback";
 import { AppStoreProvider } from "@/components/providers/app-store";
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
-        <AppStoreProvider>{children}</AppStoreProvider>
+        <FeedbackProvider><AppStoreProvider>{children}</AppStoreProvider></FeedbackProvider>
       </body>
     </html>
   );

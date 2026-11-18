@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { downloadCsv } from "@/lib/download";
 import {
   BadgePercent, Boxes, CheckCircle2, Download, PackageCheck, Plus, Truck, UsersRound,
   Warehouse, ChartNoAxesCombined
@@ -106,7 +108,7 @@ function Orders() {
   return (
     <div className="space-y-5">
       <SectionHeader title="Bulk orders & sub-shipments" description="Large orders can be fulfilled across multiple tracked sub-shipments." />
-      {orders.map(o => <Card key={o.id} className="p-5"><div className="flex flex-col gap-4 md:flex-row md:items-center"><div className="flex-1"><p className="font-mono text-xs font-bold text-slate-400">{o.id}</p><h3 className="mt-1 font-black">{o.buyer}</h3><p className="mt-1 text-xs text-slate-500">{o.volume} · {o.shipments} shipment{o.shipments>1?"s":""}</p></div><Status value={o.status} /><div className="md:w-36 md:text-right"><p className="font-black">{formatKES(o.total)}</p><button className="mt-1 text-xs font-bold text-brand-700">Manage shipments</button></div></div></Card>)}
+      {orders.map(o => <Card key={o.id} className="p-5"><div className="flex flex-col gap-4 md:flex-row md:items-center"><div className="flex-1"><p className="font-mono text-xs font-bold text-slate-400">{o.id}</p><h3 className="mt-1 font-black">{o.buyer}</h3><p className="mt-1 text-xs text-slate-500">{o.volume} · {o.shipments} shipment{o.shipments>1?"s":""}</p></div><Status value={o.status} /><div className="md:w-36 md:text-right"><p className="font-black">{formatKES(o.total)}</p><Link href="/wholesaler/shipments" className="mt-1 inline-block text-xs font-bold text-blue-700 underline underline-offset-2">Manage shipments</Link></div></div></Card>)}
     </div>
   );
 }
@@ -114,7 +116,7 @@ function Orders() {
 function Analytics() {
   return (
     <div className="space-y-5">
-      <SectionHeader title="Wholesale volume analytics" description="Top buyers, bulk-deal performance, inventory turnover and CSV export." action={<button className="mp-btn-secondary"><Download className="h-4 w-4" /> Export report</button>} />
+      <SectionHeader title="Wholesale volume analytics" description="Top buyers, bulk-deal performance, inventory turnover and CSV export." action={<button onClick={()=>downloadCsv("MarketPay-demo-wholesale-analytics.csv",["Metric","Value"],[["Total volume tonnes",18.4],["Revenue KES",2840000],["Average fill rate percent",81.6],["Inventory turnover",4.8]])} className="mp-btn-secondary"><Download className="h-4 w-4" /> Export CSV</button>} />
       <div className="grid gap-4 sm:grid-cols-4">
         <MetricCard label="Total volume" value="18.4T" />
         <MetricCard label="Revenue" value="KES 2.84M" tone="blue" />

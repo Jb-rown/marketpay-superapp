@@ -20,54 +20,53 @@ export const roleDescriptions: Record<Role, string> = {
 
 export const navigation: Record<Role, NavItem[]> = {
   consumer: [
-    { label: "Group Buying", href: "/consumer/group-buys", icon: "UsersRound" },
-    { label: "Price Alerts", href: "/consumer/price-alerts", icon: "BellRing" },
     { label: "Marketplace", href: "/consumer", icon: "Store" },
     { label: "Shopping Planner", href: "/consumer/planner", icon: "ClipboardList" },
     { label: "Cart & Checkout", href: "/consumer/cart", icon: "ShoppingCart" },
     { label: "Orders", href: "/consumer/orders", icon: "PackageCheck" },
     { label: "Wallet", href: "/consumer/wallet", icon: "WalletCards" },
     { label: "Price Intelligence", href: "/consumer/intelligence", icon: "Sparkles" },
+    { label: "Group Buying", href: "/consumer/group-buys", icon: "UsersRound" },
+    { label: "Price Alerts", href: "/consumer/price-alerts", icon: "BellRing" },
     { label: "Profile & Security", href: "/consumer/profile", icon: "UserRound" },
     { label: "Offline Access", href: "/offline", icon: "CloudOff" }
   ],
   vendor: [
-    { label: "Settlements", href: "/vendor/settlements", icon: "WalletCards" },
     { label: "Overview", href: "/vendor", icon: "LayoutDashboard" },
     { label: "Products", href: "/vendor/products", icon: "Boxes" },
     { label: "Inventory", href: "/vendor/inventory", icon: "Warehouse" },
     { label: "Orders", href: "/vendor/orders", icon: "ClipboardList" },
     { label: "Analytics", href: "/vendor/analytics", icon: "ChartNoAxesCombined" },
     { label: "Storefront", href: "/vendor/storefront", icon: "Store" },
-    { label: "CSV Import", href: "/vendor/import", icon: "FileUp" }
+    { label: "CSV Import", href: "/vendor/import", icon: "FileUp" },
+    { label: "Settlements", href: "/vendor/settlements", icon: "WalletCards" },
   ],
   wholesaler: [
-    { label: "Sub-Shipments", href: "/wholesaler/shipments", icon: "Truck" },
     { label: "Overview", href: "/wholesaler", icon: "LayoutDashboard" },
     { label: "Bulk Deals", href: "/wholesaler/deals", icon: "BadgePercent" },
     { label: "Group Buys", href: "/wholesaler/group-buys", icon: "UsersRound" },
     { label: "Bulk Orders", href: "/wholesaler/orders", icon: "Truck" },
+    { label: "Sub-Shipments", href: "/wholesaler/shipments", icon: "Truck" },
     { label: "Volume Analytics", href: "/wholesaler/analytics", icon: "ChartNoAxesCombined" }
   ],
   rider: [
-    { label: "Delivery History", href: "/rider/history", icon: "ClipboardList" },
     { label: "Overview", href: "/rider", icon: "Bike" },
     { label: "Assignments", href: "/rider/assignments", icon: "BellRing" },
     { label: "Active Delivery", href: "/rider/delivery", icon: "Navigation" },
     { label: "Earnings", href: "/rider/earnings", icon: "WalletCards" },
+    { label: "Delivery History", href: "/rider/history", icon: "ClipboardList" },
     { label: "Performance", href: "/rider/performance", icon: "Star" },
     { label: "Profile & Vehicle", href: "/rider/profile", icon: "BadgeCheck" }
   ],
   government: [
-    { label: "Regional Comparison", href: "/government/regions", icon: "MapPinned" },
     { label: "Overview", href: "/government", icon: "LayoutDashboard" },
     { label: "Price Monitor", href: "/government/prices", icon: "LineChart" },
     { label: "Market Heatmap", href: "/government/heatmap", icon: "MapPinned" },
+    { label: "Regional Comparison", href: "/government/regions", icon: "MapPinned" },
     { label: "Shortage Alerts", href: "/government/alerts", icon: "TriangleAlert" },
     { label: "Reports", href: "/government/reports", icon: "FileDown" }
   ],
   admin: [
-    { label: "Notifications", href: "/admin/notifications", icon: "BellRing" },
     { label: "Overview", href: "/admin", icon: "LayoutDashboard" },
     { label: "Users", href: "/admin/users", icon: "Users" },
     { label: "KYC Review", href: "/admin/kyc", icon: "ScanFace" },
@@ -77,6 +76,7 @@ export const navigation: Record<Role, NavItem[]> = {
     { label: "System Health", href: "/admin/monitoring", icon: "Activity" },
     { label: "Backup & Recovery", href: "/admin/backups", icon: "HardDriveDownload" },
     { label: "Configuration", href: "/admin/config", icon: "SlidersHorizontal" },
-    { label: "Audit Log", href: "/admin/audit", icon: "ListChecks" }
+    { label: "Audit Log", href: "/admin/audit", icon: "ListChecks" },
+    { label: "Notifications", href: "/admin/notifications", icon: "BellRing" },
   ]
 };

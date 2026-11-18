@@ -1,15 +1,24 @@
-components/workspaces/extended.tsx                         NEW shared interactive role-specific screens
-components/workspaces/workspace.tsx                        UPDATED route dispatch and section descriptions
-lib/navigation.ts                                           UPDATED navigation for each of six roles
-app/consumer/group-buys/page.tsx                          NEW
-app/consumer/price-alerts/page.tsx                        NEW
-app/vendor/settlements/page.tsx                           NEW
-app/wholesaler/shipments/page.tsx                          NEW
-app/rider/history/page.tsx                                NEW
-app/government/regions/page.tsx                           NEW
-app/admin/notifications/page.tsx                          NEW
-components/workspaces/vendor.tsx                          UPDATED product draft and order actions
-tailwind.config.ts                                         UPDATED official theme action/navy palette
-app/globals.css                                            UPDATED theme tokens and defaults
-UI_DELIVERY_NOTES.md                                       UPDATED implementation & limitations
-UI_CHANGED_FILES.txt                                       NEW change inventory
+MarketPay UI redesign change manifest (compared with latest preview-fixed baseline)
+
+frontend/web-nextjs/UI_UX_COMPLIANCE_REPORT.md
+frontend/web-nextjs/app/globals.css
+frontend/web-nextjs/app/layout.tsx
+frontend/web-nextjs/app/ui-review/page.tsx
+frontend/web-nextjs/components/layout/app-shell.tsx
+frontend/web-nextjs/components/providers/app-store.tsx
+frontend/web-nextjs/components/shared/command-search.tsx
+frontend/web-nextjs/components/shared/feedback.tsx
+frontend/web-nextjs/components/shared/notification-panel.tsx
+frontend/web-nextjs/components/ui/core.tsx
+frontend/web-nextjs/components/workspaces/admin.tsx
+frontend/web-nextjs/components/workspaces/consumer.tsx
+frontend/web-nextjs/components/workspaces/government.tsx
+frontend/web-nextjs/components/workspaces/rider.tsx
+frontend/web-nextjs/components/workspaces/ui-review.tsx
+frontend/web-nextjs/components/workspaces/vendor.tsx
+frontend/web-nextjs/components/workspaces/wholesaler.tsx
+frontend/web-nextjs/hooks/use-demo-state.ts
+frontend/web-nextjs/lib/csv.ts
+frontend/web-nextjs/lib/download.ts
+frontend/web-nextjs/lib/navigation.ts
+frontend/web-nextjs/middleware.ts

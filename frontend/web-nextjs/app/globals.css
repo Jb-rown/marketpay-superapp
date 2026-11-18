@@ -90,3 +90,18 @@ button { -webkit-tap-highlight-color: transparent; }
   .mp-table tbody tr:last-child td { @apply border-b-0; }
   .mp-table tbody tr { @apply transition hover:bg-slate-50/70; }
 }
+
+/* UX compliance enhancements: keyboard, readable text, reduced motion, touch input. */
+:where(a,button,input,select,textarea,[role="button"],[role="switch"]):focus-visible {
+  outline: 2px solid var(--color-action);
+  outline-offset: 3px;
+}
+:where(button,a,[role="button"]) { touch-action: manipulation; }
+:where(button):disabled { cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+@media (max-width: 767px) {
+  .mp-table-wrap { overscroll-behavior-x: contain; }
+  .mp-table th, .mp-table td { white-space: nowrap; }
+}

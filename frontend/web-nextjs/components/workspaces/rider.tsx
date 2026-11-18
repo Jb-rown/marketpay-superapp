@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useFeedback } from "@/components/shared/feedback";
+import { Modal } from "@/components/ui/core";
 import {
   BadgeCheck, Bike, CheckCircle2, Clock3, MapPin, Navigation, Phone, ShieldCheck,
   Star, TimerReset, TrendingUp, WalletCards, XCircle
@@ -30,6 +32,8 @@ export function RiderWorkspace({ section }: { section: string }) {
 
 function Overview(){
   const [available,setAvailable]=useState(true);
+  const [decision,setDecision]=useState<"accepted"|"declined"|null>(null);
+  const {notify}=useFeedback();
   return <div className="space-y-6">
     <Card className="overflow-hidden border-0 bg-gradient-to-br from-navy-900 to-brand-800 p-6 text-white">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -44,24 +48,30 @@ function Overview(){
       <MetricCard label="Rider rating" value="4.91" tone="amber" detail="384 ratings" icon={<Star className="h-5 w-5"/>}/>
     </div>
     <div className="grid gap-4 xl:grid-cols-[.85fr_1.15fr]">
-      <Card className="p-5"><SectionHeader title="Incoming assignment"/><div className="mt-4 rounded-2xl border border-brand-200 bg-brand-50 p-4"><div className="flex items-start justify-between"><div><p className="font-mono text-xs font-bold text-brand-700">MP-ORD-1061</p><h3 className="mt-1 font-black">Wakulima Fresh → Kilimani</h3></div><Badge tone="warning"><Clock3 className="mr-1 h-3.5 w-3.5"/> 74 sec</Badge></div><div className="mt-4 grid grid-cols-3 gap-2 text-xs"><div><p className="text-slate-400">Distance</p><p className="mt-1 font-bold">4.8 km</p></div><div><p className="text-slate-400">Fee</p><p className="mt-1 font-bold">KES 280</p></div><div><p className="text-slate-400">Vehicle</p><p className="mt-1 font-bold">Motorbike</p></div></div><div className="mt-4 grid grid-cols-2 gap-2"><button className="mp-btn-primary"><CheckCircle2 className="h-4 w-4"/>Accept</button><button className="mp-btn-secondary"><XCircle className="h-4 w-4"/>Decline</button></div></div></Card>
+      <Card className="p-5"><SectionHeader title="Incoming assignment"/><div className="mt-4 rounded-2xl border border-brand-200 bg-brand-50 p-4"><div className="flex items-start justify-between"><div><p className="font-mono text-xs font-bold text-brand-700">MP-ORD-1061</p><h3 className="mt-1 font-black">Wakulima Fresh → Kilimani</h3></div><Badge tone="warning"><Clock3 className="mr-1 h-3.5 w-3.5"/> 74 sec</Badge></div><div className="mt-4 grid grid-cols-3 gap-2 text-xs"><div><p className="text-slate-400">Distance</p><p className="mt-1 font-bold">4.8 km</p></div><div><p className="text-slate-400">Fee</p><p className="mt-1 font-bold">KES 280</p></div><div><p className="text-slate-400">Vehicle</p><p className="mt-1 font-bold">Motorbike</p></div></div><div className="mt-4 grid grid-cols-2 gap-2"><button disabled={decision!==null} onClick={()=>{setDecision("accepted");notify("Demo: assignment accepted. No dispatcher was notified.","success");}} className="mp-btn-primary"><CheckCircle2 className="h-4 w-4"/>Accept</button><button disabled={decision!==null} onClick={()=>{setDecision("declined");notify("Demo: assignment declined.","info");}} className="mp-btn-secondary"><XCircle className="h-4 w-4"/>Decline</button></div></div></Card>
       <MapCard/>
     </div>
   </div>
 }
 
 function Assignments(){
+  const [decisions,setDecisions]=useState<Record<string,"ACCEPTED"|"DECLINED">>({});
+  const {notify}=useFeedback();
   return <div className="space-y-5"><SectionHeader title="Delivery assignments" description="New offers expire after the response window and automatically move to the next eligible rider."/>
-    <div className="grid gap-4 lg:grid-cols-3">{assignments.map(a=><Card key={a.id} className="p-5"><div className="flex items-start justify-between"><Badge tone="info">{a.id}</Badge><Status value={a.status}/></div><h3 className="mt-4 font-black">{a.pickup}</h3><p className="mt-1 text-sm text-slate-500">to {a.drop}</p><div className="mt-4 grid grid-cols-2 gap-3 text-xs"><div><p className="text-slate-400">Distance</p><p className="mt-1 font-bold">{a.distance}</p></div><div><p className="text-slate-400">Delivery fee</p><p className="mt-1 font-bold">{formatKES(a.fee)}</p></div></div>{a.status==="OFFERED"&&<><div className="mt-4"><ProgressBar value={Math.round(a.expires/90*100)} label={`${a.expires} seconds remaining`}/></div><div className="mt-4 grid grid-cols-2 gap-2"><button className="mp-btn-primary">Accept</button><button className="mp-btn-secondary">Decline</button></div></>}</Card>)}</div>
+    <div className="grid gap-4 lg:grid-cols-3">{assignments.map(a=><Card key={a.id} className="p-5"><div className="flex items-start justify-between"><Badge tone="info">{a.id}</Badge><Status value={decisions[a.id]||a.status}/></div><h3 className="mt-4 font-black">{a.pickup}</h3><p className="mt-1 text-sm text-slate-500">to {a.drop}</p><div className="mt-4 grid grid-cols-2 gap-3 text-xs"><div><p className="text-slate-400">Distance</p><p className="mt-1 font-bold">{a.distance}</p></div><div><p className="text-slate-400">Delivery fee</p><p className="mt-1 font-bold">{formatKES(a.fee)}</p></div></div>{a.status==="OFFERED"&&!decisions[a.id]&&<><div className="mt-4"><ProgressBar value={Math.round(a.expires/90*100)} label={`${a.expires} seconds remaining`}/></div><div className="mt-4 grid grid-cols-2 gap-2"><button onClick={()=>{setDecisions(old=>({...old,[a.id]:"ACCEPTED"}));notify("Demo: assignment accepted.","success");}} className="mp-btn-primary">Accept</button><button onClick={()=>{setDecisions(old=>({...old,[a.id]:"DECLINED"}));notify("Demo: assignment declined.","info");}} className="mp-btn-secondary">Decline</button></div></>}</Card>)}</div>
   </div>
 }
 
 function Delivery(){
+  const [otpOpen,setOtpOpen]=useState(false);
+  const [otp,setOtp]=useState("");
+  const [confirmed,setConfirmed]=useState(false);
+  const {notify}=useFeedback();
   return <div className="space-y-5">
     <SectionHeader title="Active delivery" description="Pickup, route, consumer contact, live GPS status and delivery confirmation are grouped in one operational view."/>
     <div className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]"><MapCard title="MP-ORD-1057 · Active route" rider="David Mwangi" eta="18 min"/>
       <Card className="p-5"><div className="flex items-start justify-between"><div><p className="font-mono text-xs font-bold text-slate-400">MP-ORD-1057</p><h3 className="mt-1 text-lg font-black">Upper Hill delivery</h3></div><Status value="IN_DELIVERY"/></div>
-      <div className="mt-5 space-y-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-400">Pickup</p><p className="mt-1 text-sm font-bold">Wakulima Fresh, Wakulima Market</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-400">Customer</p><p className="mt-1 text-sm font-bold">Peter Otieno · Kilimani</p><button className="mt-2 text-xs font-bold text-brand-700"><Phone className="mr-1 inline h-3.5 w-3.5"/>Call customer</button></div><div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">Delivery requires the consumer’s confirmation code / OTP before completion.</div><button className="mp-btn-primary w-full">Enter delivery OTP</button></div></Card></div>
+      <div className="mt-5 space-y-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-400">Pickup</p><p className="mt-1 text-sm font-bold">Wakulima Fresh, Wakulima Market</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-400">Customer</p><p className="mt-1 text-sm font-bold">Peter Otieno · Kilimani</p><p className="mt-2 text-xs text-slate-600"><Phone className="mr-1 inline h-3.5 w-3.5"/>Customer contact is available after live integration.</p></div><div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">Delivery requires the consumer’s confirmation code / OTP before completion.</div><button disabled={confirmed} onClick={()=>setOtpOpen(true)} className="mp-btn-primary w-full">{confirmed?"Demo delivery confirmed":"Enter delivery OTP"}</button></div></Card></div>
   </div>
 }
 
@@ -86,7 +96,9 @@ function Performance(){
 }
 
 function Profile(){
-  return <div className="grid gap-6 xl:grid-cols-[1fr_420px]"><Card className="p-5"><SectionHeader title="Rider profile & vehicle" description="Rider onboarding includes KYC, vehicle type and driving licence where applicable."/><div className="mt-5 grid gap-4 sm:grid-cols-2"><div><label className="mp-label">Full name</label><input className="mp-input" defaultValue="David Mwangi"/></div><div><label className="mp-label">Phone</label><input className="mp-input" defaultValue="+254 721 555 441"/></div><div><label className="mp-label">Vehicle type</label><select className="mp-select"><option>Motorbike</option><option>Bicycle</option><option>Foot delivery</option><option>Vehicle</option></select></div><div><label className="mp-label">License plate</label><input className="mp-input" defaultValue="KMFZ 218A"/></div><div className="sm:col-span-2"><label className="mp-label">Driving licence</label><div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-sm font-bold">driving_licence.pdf</p><p className="mt-1 text-xs text-emerald-700"><CheckCircle2 className="mr-1 inline h-3.5 w-3.5"/>Verified</p></div></div></div><button className="mp-btn-primary mt-5">Save profile</button></Card>
+  const {notify}=useFeedback();
+  const [saved,setSaved]=useState(false);
+  return <div className="grid gap-6 xl:grid-cols-[1fr_420px]"><Card className="p-5"><SectionHeader title="Rider profile & vehicle" description="Rider onboarding includes KYC, vehicle type and driving licence where applicable."/><div className="mt-5 grid gap-4 sm:grid-cols-2"><div><label className="mp-label">Full name</label><input className="mp-input" defaultValue="David Mwangi"/></div><div><label className="mp-label">Phone</label><input className="mp-input" defaultValue="+254 721 555 441"/></div><div><label className="mp-label">Vehicle type</label><select className="mp-select"><option>Motorbike</option><option>Bicycle</option><option>Foot delivery</option><option>Vehicle</option></select></div><div><label className="mp-label">License plate</label><input className="mp-input" defaultValue="KMFZ 218A"/></div><div className="sm:col-span-2"><label className="mp-label">Driving licence</label><div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-sm font-bold">driving_licence.pdf</p><p className="mt-1 text-xs text-emerald-700"><CheckCircle2 className="mr-1 inline h-3.5 w-3.5"/>Verified</p></div></div></div><button onClick={()=>{setSaved(true);notify("Your demo rider profile has been saved for this session.","success");}} className="mp-btn-primary mt-5">Save profile</button>{saved&&<p role="status" className="mt-2 text-xs text-green-700">Changes are local to this preview, not submitted for KYC review.</p>}</Card>
     <div className="space-y-4"><Card className="p-5"><div className="grid h-20 w-20 place-items-center rounded-2xl bg-brand-100 text-xl font-black text-brand-700">DM</div><h3 className="mt-4 text-xl font-black">David Mwangi</h3><p className="mt-1 text-sm text-slate-500">Rider · Motorbike</p><div className="mt-3 flex gap-2"><Badge tone="success">KYC APPROVED</Badge><Badge tone="brand">AVAILABLE</Badge></div></Card><Card className="p-5"><p className="text-sm font-black">Verification</p><div className="mt-4 space-y-3 text-sm"><div className="flex items-center gap-2"><BadgeCheck className="h-4 w-4 text-emerald-600"/>Identity verified</div><div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-600"/>Driving licence verified</div><div className="flex items-center gap-2"><Bike className="h-4 w-4 text-emerald-600"/>Vehicle details current</div></div></Card></div>
   </div>
 }

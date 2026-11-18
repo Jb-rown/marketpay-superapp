@@ -9,6 +9,9 @@ import {
   UserRound, WalletCards
 } from "lucide-react";
 import { useAppStore } from "@/components/providers/app-store";
+import { useFeedback } from "@/components/shared/feedback";
+import { downloadCsv, downloadText } from "@/lib/download";
+import { useDemoState } from "@/hooks/use-demo-state";
 import { Card, Badge, Modal, Toggle } from "@/components/ui/core";
 import { MetricCard, MiniLineChart, ProgressBar } from "@/components/ui/metrics";
 import { SectionHeader } from "@/components/shared/section";
@@ -241,13 +244,20 @@ function CartPage() {
 
 function OrdersPage() {
   const [selected, setSelected] = useState(consumerOrders[0]);
+  const [review,setReview]=useState<"confirm"|"dispute"|null>(null);
+  const [reason,setReason]=useState("");
+  const [updates,setUpdates]=useState<Record<string,"COMPLETED"|"DISPUTED">>({});
+  const {addToCart}=useAppStore();
+  const {notify}=useFeedback();
+  const status=updates[selected.id]||selected.status;
+  const receipt=()=>downloadText(`MarketPay-demo-receipt-${selected.id}.txt`,[`MARKETPAY · DEMO RECEIPT`, `Order: ${selected.id}`,`Seller: ${selected.vendor}`,`Amount: ${formatKES(selected.total)}`,`Status: ${status}`,`DEMONSTRATION — NOT A FINANCIAL RECEIPT`].join("\n"));
   return (
     <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
       <div className="space-y-3">
         <SectionHeader title="Order history" description="Track active deliveries, view receipts, reorder completed items, or raise a dispute within the delivery window." />
         {consumerOrders.map((order) => (
           <button key={order.id} onClick={() => setSelected(order)} className={`w-full rounded-2xl border bg-white p-4 text-left shadow-sm transition ${selected.id === order.id ? "border-brand-400 ring-4 ring-brand-500/10" : "border-slate-200 hover:border-slate-300"}`}>
-            <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-slate-400">{order.id}</p><p className="mt-1 font-bold text-slate-900">{order.vendor}</p></div><Status value={order.status} /></div>
+            <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold text-slate-400">{order.id}</p><p className="mt-1 font-bold text-slate-900">{order.vendor}</p></div><Status value={updates[order.id]||order.status} /></div>
             <div className="mt-4 grid grid-cols-3 gap-2 text-xs"><div><p className="text-slate-400">Total</p><p className="mt-1 font-bold">{formatKES(order.total)}</p></div><div><p className="text-slate-400">Items</p><p className="mt-1 font-bold">{order.items}</p></div><div><p className="text-slate-400">ETA</p><p className="mt-1 font-bold">{order.eta}</p></div></div>
           </button>
         ))}
@@ -256,7 +266,7 @@ function OrdersPage() {
         <Card className="p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Order detail</p><h2 className="mt-1 text-xl font-black text-slate-950">{selected.id}</h2><p className="mt-1 text-sm text-slate-500">{selected.vendor} · {selected.createdAt}</p></div>
-            <Status value={selected.status} />
+            <Status value={status} />
           </div>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <MetricCard label="Total" value={formatKES(selected.total)} />
@@ -272,12 +282,15 @@ function OrdersPage() {
             {["CONFIRMED","PREPARING","IN DELIVERY","DELIVERED","COMPLETED"].map((step, index) => <div key={step} className="text-center"><div className={`mx-auto h-2 rounded-full ${index <= 2 && selected.status === "IN_DELIVERY" ? "bg-brand-500" : index === 0 ? "bg-brand-500" : "bg-slate-200"}`} /><p className="mt-2 text-[10px] font-semibold text-slate-500">{step}</p></div>)}
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
-            <button className="mp-btn-secondary"><ReceiptText className="h-4 w-4" /> View receipt</button>
-            {selected.status === "COMPLETED" && <button className="mp-btn-secondary"><ShoppingBag className="h-4 w-4" /> Reorder</button>}
-            {selected.status === "IN_DELIVERY" && <button className="mp-btn-primary"><CheckCircle2 className="h-4 w-4" /> Confirm receipt</button>}
-            {["DELIVERED","IN_DELIVERY"].includes(selected.status) && <button className="mp-btn-secondary text-red-600"><Info className="h-4 w-4" /> Raise dispute</button>}
+            <button onClick={receipt} className="mp-btn-secondary"><ReceiptText className="h-4 w-4" /> Demo receipt</button>
+            {status === "COMPLETED" && <button onClick={()=>{addToCart(products[0]);notify("Added a sample product to your cart. Original order items are unavailable in this demo.","info");}} className="mp-btn-secondary"><ShoppingBag className="h-4 w-4" /> Try reorder</button>}
+            {status === "IN_DELIVERY" && <button onClick={()=>setReview("confirm")} className="mp-btn-primary"><CheckCircle2 className="h-4 w-4" /> Confirm receipt</button>}
+            {["DELIVERED","IN_DELIVERY"].includes(status) && <button onClick={()=>setReview("dispute")} className="mp-btn-secondary text-red-600"><Info className="h-4 w-4" /> Raise dispute</button>}
           </div>
         </Card>
+        <Modal open={review!==null} onClose={()=>setReview(null)} title={review==="dispute"?"Raise demo dispute":"Confirm order received"} description="This changes only the demonstration state; no payment or escrow is processed." footer={<><button className="mp-btn-secondary" onClick={()=>setReview(null)}>Cancel</button><button disabled={review==="dispute"&&reason.trim().length<10} className="mp-btn-primary" onClick={()=>{if(review){setUpdates(old=>({...old,[selected.id]:review==="dispute"?"DISPUTED":"COMPLETED"}));notify(review==="dispute"?"Demo dispute recorded for review.":"Demo order marked completed.","success");setReview(null);setReason("");}}}>Confirm</button></>}>
+          {review==="dispute"?<><label htmlFor="dispute-reason" className="mp-label">Reason for dispute</label><textarea id="dispute-reason" className="mp-textarea" value={reason} onChange={e=>setReason(e.target.value)} minLength={10} placeholder="Explain what went wrong (at least 10 characters)"/></>:<p className="text-sm text-slate-700">Confirm that the items for {selected.id} have been received in this preview.</p>}
+        </Modal>
       </div>
     </div>
   );
@@ -285,6 +298,9 @@ function OrdersPage() {
 
 function WalletPage() {
   const [action, setAction] = useState<"topup" | "send" | "withdraw" | null>(null);
+  const [amount,setAmount]=useState("");
+  const [recipient,setRecipient]=useState("");
+  const {notify}=useFeedback();
   const [filter, setFilter] = useState("All");
   const filtered = transactions.filter((tx) => filter === "All" || tx.type === filter);
   return (
@@ -305,7 +321,7 @@ function WalletPage() {
       </Card>
 
       <div>
-        <SectionHeader title="Transaction history" description="Reverse chronological wallet activity with type, amount, counterparty, date and reference." action={<button className="mp-btn-secondary"><Download className="h-4 w-4" /> Statement PDF</button>} />
+        <SectionHeader title="Transaction history" description="Reverse chronological wallet activity with type, amount, counterparty, date and reference." action={<button onClick={()=>{downloadCsv("MarketPay-demo-wallet-statement.csv",["Type","Counterparty","Date","Reference","Amount KES"],filtered.map(tx=>[tx.type,tx.counterparty,tx.date,tx.reference,(tx.direction==="in"?1:-1)*tx.amount]));notify("Demo wallet statement CSV downloaded.","success");}} className="mp-btn-secondary"><Download className="h-4 w-4" /> Export CSV</button>} />
         <div className="mt-4 flex flex-wrap gap-2">
           {["All","Top up","Transfer","Order payment","Escrow release","Withdrawal"].map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-full px-3 py-1.5 text-xs font-semibold ${filter === item ? "bg-navy-900 text-white" : "border border-slate-200 bg-white text-slate-600"}`}>{item}</button>)}
         </div>
@@ -318,10 +334,10 @@ function WalletPage() {
 
       <Modal open={!!action} onClose={() => setAction(null)} title={action === "topup" ? "Top up with M-Pesa" : action === "send" ? "Send money" : "Withdraw to M-Pesa"} description="Frontend interaction only — no API request is made.">
         <div className="space-y-4">
-          {action === "send" && <div><label className="mp-label">Recipient phone</label><input className="mp-input" placeholder="+254 7XX XXX XXX" /></div>}
-          <div><label className="mp-label">Amount (KES)</label><input className="mp-input" type="number" placeholder={action === "withdraw" ? "Minimum 50" : "0.00"} /></div>
+          {action === "send" && <div><label className="mp-label" htmlFor="wallet-recipient">Recipient phone</label><input id="wallet-recipient" className="mp-input" value={recipient} onChange={e=>setRecipient(e.target.value)} placeholder="+254712345678" /></div>}
+          <div><label className="mp-label" htmlFor="wallet-amount">Amount (KES)</label><input id="wallet-amount" className="mp-input" type="number" min={action==="withdraw"?50:10} max="150000" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)} placeholder={action === "withdraw" ? "Minimum 50" : "0.00"} /></div>
           {action === "send" && <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-500">The confirmed recipient name would be displayed here before transfer.</div>}
-          <button onClick={() => setAction(null)} className="mp-btn-primary w-full">{action === "topup" ? "Send STK Push" : action === "send" ? "Review transfer" : "Review withdrawal"}</button>
+          <button disabled={!Number.isFinite(Number(amount))||Number(amount)<(action==="withdraw"?50:10)||Number(amount)>150000||(action==="send"&&!/^\+?[1-9]\d{8,14}$/.test(recipient))} onClick={() => {notify(`Demo ${action} reviewed for KES ${Number(amount).toLocaleString("en-KE")}. No funds have moved.`,"info");setAction(null);setAmount("");setRecipient("");}} className="mp-btn-primary w-full">Preview {action === "topup" ? "top-up" : action === "send" ? "transfer" : "withdrawal"}</button>
         </div>
       </Modal>
     </div>
@@ -330,6 +346,9 @@ function WalletPage() {
 
 function IntelligencePage() {
   const [commodity, setCommodity] = useState("Dry maize");
+  const [cheapest,setCheapest]=useState<string|null>(null);
+  const [alertTarget,setAlertTarget]=useState("");
+  const {notify}=useFeedback();
   const [followed, setFollowed] = useState(true);
   return (
     <div className="space-y-6">
@@ -338,10 +357,11 @@ function IntelligencePage() {
         <div className="mt-5 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
           <div><label className="mp-label">Commodity</label><select className="mp-select" value={commodity} onChange={(e) => setCommodity(e.target.value)}><option>Dry maize</option><option>Pishori rice</option><option>Red onions</option><option>Tomatoes</option></select></div>
           <div><label className="mp-label">Location radius</label><select className="mp-select"><option>Within 5 km</option><option>Within 10 km</option><option>Within 25 km</option></select></div>
-          <div className="self-end"><button className="mp-btn-primary h-11"><Sparkles className="h-4 w-4" /> Find cheapest</button></div>
+          <div className="self-end"><button onClick={()=>{const field:Record<string,"maize"|"rice"|"onions"|"tomatoes">={"Dry maize":"maize","Pishori rice":"rice","Red onions":"onions","Tomatoes":"tomatoes"};const col=field[commodity];const winner=[...marketRows].sort((a,b)=>a[col]-b[col])[0];setCheapest(`${winner.market}: KES ${winner[col]} (sample market price)`);}} className="mp-btn-primary h-11"><Sparkles className="h-4 w-4" /> Find cheapest</button></div>
         </div>
       </Card>
 
+      {cheapest && <p role="status" className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-900">Lowest price from sample markets: {cheapest}</p>}
       <div className="grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
         <Card className="p-5">
           <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">12-point price trend</p><h3 className="mt-1 text-lg font-black">{commodity}</h3></div><Badge tone="success"><TrendingDown className="mr-1 h-3.5 w-3.5" /> 8.4% below 30-day avg.</Badge></div>
@@ -350,12 +370,12 @@ function IntelligencePage() {
         </Card>
         <Card className="p-5">
           <p className="text-sm font-extrabold">Price alert</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">Receive push and SMS when the condition is met.</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">Set a price threshold for this preview. Live SMS requires the notification service.</p>
           <div className="mt-4 space-y-4">
             <Toggle checked={followed} onChange={setFollowed} label="Follow dry maize" />
             <div><label className="mp-label">Change threshold</label><select className="mp-select"><option>10% change</option><option>5% change</option><option>15% change</option></select></div>
-            <div><label className="mp-label">Custom target</label><input className="mp-input" placeholder="Alert me below KES 80/kg" /></div>
-            <button className="mp-btn-primary w-full"><BellRing className="h-4 w-4" /> Save alert</button>
+            <div><label className="mp-label">Custom target</label><input className="mp-input" type="number" min="1" value={alertTarget} onChange={e=>setAlertTarget(e.target.value)} placeholder="e.g. 80 KES/kg" /></div>
+            <button disabled={!followed||!(Number(alertTarget)>0)} onClick={()=>notify(`Demo price alert saved for ${commodity} below KES ${alertTarget}. No SMS will be sent.`,"success")} className="mp-btn-primary w-full"><BellRing className="h-4 w-4" /> Save alert</button>
           </div>
         </Card>
       </div>
@@ -372,27 +392,34 @@ function IntelligencePage() {
 
 function ProfilePage() {
   const { pushNotificationsEnabled, setPushNotificationsEnabled } = useAppStore();
+  const {notify}=useFeedback();
   const [mfa, setMfa] = useState(false);
+  const [smsFallback,setSmsFallback]=useDemoState("consumer.sms",true);
+  const [pricePreference,setPricePreference]=useDemoState("consumer.price-preference",true);
+  const [lowBandwidth,setLowBandwidth]=useDemoState("consumer.low-bandwidth",false);
+  const [profile,setProfile]=useState({name:"Peter Otieno",phone:"+254 712 345 678",email:"peter.otieno@example.com",location:"Kilimani, Nairobi"});
+  const [deleteDialog,setDeleteDialog]=useState(false);
+  const [deletionRequested,setDeletionRequested]=useState(false);
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
       <div className="space-y-5">
         <Card className="p-5">
           <SectionHeader title="Personal profile" description="Phone changes require re-verification before they are saved." action={<Badge tone="success">KYC VERIFIED</Badge>} />
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div><label className="mp-label">Full name</label><input className="mp-input" defaultValue="Peter Otieno" /></div>
-            <div><label className="mp-label">Phone number</label><input className="mp-input" defaultValue="+254 712 345 678" /></div>
-            <div><label className="mp-label">Email</label><input className="mp-input" defaultValue="peter.otieno@example.com" /></div>
-            <div><label className="mp-label">Location</label><input className="mp-input" defaultValue="Kilimani, Nairobi" /></div>
+            <div><label className="mp-label">Full name</label><input className="mp-input" value={profile.name} onChange={e=>setProfile(p=>({...p,name:e.target.value}))} minLength={2} maxLength={100} /></div>
+            <div><label className="mp-label">Phone number</label><input className="mp-input" value={profile.phone} readOnly aria-describedby="phone-help" /><p id="phone-help" className="mt-1 text-xs text-slate-600">Phone changes require verification and are unavailable in UI preview.</p></div>
+            <div><label className="mp-label">Email</label><input type="email" className="mp-input" value={profile.email} onChange={e=>setProfile(p=>({...p,email:e.target.value}))} /></div>
+            <div><label className="mp-label">Location</label><input className="mp-input" value={profile.location} onChange={e=>setProfile(p=>({...p,location:e.target.value}))} /></div>
           </div>
-          <button className="mp-btn-primary mt-5">Save profile</button>
+          <button disabled={profile.name.trim().length<2||!profile.email.includes("@")} onClick={()=>notify("Demo profile details saved for this session. No identity records were changed.","success")} className="mp-btn-primary mt-5">Save profile</button>
         </Card>
         <Card className="p-5">
           <SectionHeader title="Notification preferences" description="Order, wallet, security and price events use push notifications with SMS fallback." />
           <div className="mt-5 space-y-4">
             <Toggle checked={pushNotificationsEnabled} onChange={setPushNotificationsEnabled} label="Push notifications" />
-            <Toggle checked={true} onChange={() => {}} label="SMS fallback" />
-            <Toggle checked={true} onChange={() => {}} label="Price alerts" />
-            <Toggle checked={false} onChange={() => {}} label="Low-bandwidth mode" />
+            <Toggle checked={smsFallback} onChange={setSmsFallback} label="SMS fallback" />
+            <Toggle checked={pricePreference} onChange={setPricePreference} label="Price alerts" />
+            <Toggle checked={lowBandwidth} onChange={setLowBandwidth} label="Low-bandwidth mode" />
             <Link href="/offline" className="mp-btn-secondary w-full justify-center">View offline / USSD access</Link>
           </div>
         </Card>
@@ -409,12 +436,13 @@ function ProfilePage() {
           <div className="mt-4 space-y-4">
             <Toggle checked={mfa} onChange={setMfa} label="Multi-factor authentication" />
             <div className="rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500">Consumers can opt into MFA. Elevated roles require a second factor during login.</div>
-            <button className="mp-btn-secondary w-full"><ShieldCheck className="h-4 w-4" /> Change password</button>
+            <Link href="/forgot-password" className="mp-btn-secondary w-full"><ShieldCheck className="h-4 w-4" /> Reset password</Link>
           </div>
         </Card>
         <Card className="border-red-200 p-5">
-          <p className="text-sm font-extrabold text-red-700">Account deletion</p><p className="mt-1 text-xs leading-5 text-slate-500">A deletion request anonymizes personal data under the documented retention policy while retaining required transaction records.</p><button className="mt-4 text-xs font-bold text-red-600">Request account deletion</button>
+          <p className="text-sm font-extrabold text-red-700">Account deletion</p><p className="mt-1 text-xs leading-5 text-slate-500">A deletion request anonymizes personal data under the documented retention policy while retaining required transaction records.</p><button disabled={deletionRequested} onClick={()=>setDeleteDialog(true)} className="mt-4 text-xs font-bold text-red-700 underline underline-offset-2">{deletionRequested?"Demo request recorded":"Request account deletion"}</button>
         </Card>
+        <Modal open={deleteDialog} onClose={()=>setDeleteDialog(false)} title="Review account deletion request" description="This is a local UI preview. No account or stored data will be deleted." footer={<><button className="mp-btn-secondary" onClick={()=>setDeleteDialog(false)}>Cancel</button><button className="mp-btn-danger" onClick={()=>{setDeletionRequested(true);setDeleteDialog(false);notify("Demo deletion request recorded. No real account action was taken.","warning");}}>Confirm demo request</button></>}><p className="text-sm leading-6 text-slate-700">In production, a verified request would follow the account-retention and identity-confirmation policy.</p></Modal>
       </div>
     </div>
   );

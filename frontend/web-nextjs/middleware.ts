@@ -43,6 +43,9 @@ export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (publicRoutes.includes(pathname)) return NextResponse.next();
+  if (pathname === "/ui-review" && !previewEnabled()) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
 
   // Preview is automatically enabled for `next dev`, unless explicitly disabled.
   // It is impossible to activate via this setting in a production build.
