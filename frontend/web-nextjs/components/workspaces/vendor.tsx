@@ -67,11 +67,16 @@ function Overview() {
 function Products() {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const visible = useMemo(() => products.filter((p) => `${p.name} ${p.category}`.toLowerCase().includes(query.toLowerCase())), [query]);
+  const [drafts, setDrafts] = useState<{id:string;name:string;category:string;unit:string;price:number;stock:number}[]>([]);
+  const [form, setForm] = useState({name:"",category:"Grain",unit:"kg",price:0,stock:0});
+  const [saved, setSaved] = useState(false);
+  const visible = useMemo(() => [...products,...drafts.map(d=>({...d,vendor:"Wakulima Fresh",market:"Wakulima",marketAverage:d.price,distanceKm:0,rating:0}))].filter((p) => `${p.name} ${p.category}`.toLowerCase().includes(query.toLowerCase())), [query,drafts]);
+  const saveDraft = () => { if (!form.name.trim() || form.price <= 0 || form.stock < 0) return; setDrafts(old=>[{id:`DRAFT-${Date.now()}`,...form,name:form.name.trim()},...old]);setOpen(false);setSaved(true);setForm({name:"",category:"Grain",unit:"kg",price:0,stock:0}); };
 
   return (
     <div className="space-y-5">
       <SectionHeader title="Product listings" description="Create draft listings, review AI pricing guidance, then publish to the consumer marketplace." action={<button className="mp-btn-primary" onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> Add product</button>} />
+      {saved && <p role="status" className="rounded-xl bg-green-50 p-3 text-sm text-green-800">Product draft added to the current session. No listing has been published.</p>}
       <Card className="p-4">
         <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input className="mp-input pl-9" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products..." /></div>
       </Card>
@@ -80,19 +85,19 @@ function Products() {
           <thead><tr><th>Product</th><th>Category</th><th>Stock</th><th>My price</th><th>Market average</th><th>Pricing signal</th><th>Status</th></tr></thead>
           <tbody>{visible.map((p) => {
             const above = p.price > p.marketAverage * 1.15;
-            return <tr key={p.id}><td><div className="font-bold text-slate-900">{p.name}</div><div className="text-xs text-slate-400">{p.id}</div></td><td>{p.category}</td><td>{p.stock} {p.unit}</td><td className="font-bold">KES {p.price}</td><td>KES {p.marketAverage}</td><td><Badge tone={above ? "warning" : "success"}>{above ? "Above market" : "Competitive"}</Badge></td><td><Status value={p.stock ? "ACTIVE" : "OUT_OF_STOCK"} /></td></tr>;
+            return <tr key={p.id}><td><div className="font-bold text-slate-900">{p.name}</div><div className="text-xs text-slate-400">{p.id}</div></td><td>{p.category}</td><td>{p.stock} {p.unit}</td><td className="font-bold">KES {p.price}</td><td>KES {p.marketAverage}</td><td><Badge tone={above ? "warning" : "success"}>{above ? "Above market" : "Competitive"}</Badge></td><td><Status value={p.id.startsWith("DRAFT-") ? "DRAFT" : p.stock ? "ACTIVE" : "OUT_OF_STOCK"} /></td></tr>;
           })}</tbody>
         </table>
       </div>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Create product listing" description="Valid frontend entries are saved as a DRAFT in the UI demo." width="max-w-2xl"
-        footer={<><button className="mp-btn-secondary" onClick={() => setOpen(false)}>Cancel</button><button className="mp-btn-primary" onClick={() => setOpen(false)}>Save draft</button></>}>
+        footer={<><button className="mp-btn-secondary" onClick={() => setOpen(false)}>Cancel</button><button className="mp-btn-primary" disabled={!form.name.trim()||form.price<=0||form.stock<0} onClick={saveDraft}>Save draft</button></>}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2"><label className="mp-label">Product name</label><input className="mp-input" placeholder="e.g. Dry Maize" /></div>
-          <div><label className="mp-label">Category</label><select className="mp-select"><option>Grain</option><option>Vegetable</option><option>Fruit</option><option>Protein</option><option>Dairy</option><option>General</option></select></div>
-          <div><label className="mp-label">Unit</label><select className="mp-select"><option>kg</option><option>litre</option><option>piece</option><option>crate</option><option>bag</option></select></div>
-          <div><label className="mp-label">Price per unit</label><input className="mp-input" type="number" placeholder="0.00" /></div>
-          <div><label className="mp-label">Quantity</label><input className="mp-input" type="number" placeholder="0" /></div>
+          <div className="sm:col-span-2"><label className="mp-label">Product name</label><input className="mp-input" placeholder="e.g. Dry Maize" value={form.name} onChange={e=>setForm(v=>({...v,name:e.target.value}))}/></div>
+          <div><label className="mp-label">Category</label><select className="mp-select" value={form.category} onChange={e=>setForm(v=>({...v,category:e.target.value}))}><option>Grain</option><option>Vegetable</option><option>Fruit</option><option>Protein</option><option>Dairy</option><option>General</option></select></div>
+          <div><label className="mp-label">Unit</label><select className="mp-select" value={form.unit} onChange={e=>setForm(v=>({...v,unit:e.target.value}))}><option>kg</option><option>litre</option><option>piece</option><option>crate</option><option>bag</option></select></div>
+          <div><label className="mp-label">Price per unit</label><input className="mp-input" type="number" min="0.01" step="0.01" placeholder="0.00" value={form.price||""} onChange={e=>setForm(v=>({...v,price:Number(e.target.value)}))}/></div>
+          <div><label className="mp-label">Quantity</label><input className="mp-input" type="number" min="0" placeholder="0" value={form.stock} onChange={e=>setForm(v=>({...v,stock:Number(e.target.value)}))}/></div>
           <div className="sm:col-span-2">
             <label className="mp-label">Product images · max 5</label>
             <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center"><div><ImagePlus className="mx-auto h-6 w-6 text-slate-400" /><p className="mt-2 text-xs font-semibold text-slate-600">Drop images or click to browse</p><p className="text-[10px] text-slate-400">Up to 5MB each</p></div></div>
@@ -127,18 +132,22 @@ function Inventory() {
 }
 
 function Orders() {
+  const [statuses,setStatuses]=useState<Record<string,string>>({});
+  const [selected,setSelected]=useState<string|null>(null);
+  const change=(id:string,status:string)=>setStatuses(prev=>({...prev,[id]:status}));
   return (
     <div className="space-y-5">
       <SectionHeader title="Order management" description="Incoming orders can be accepted or rejected, prepared, and handed off to an assigned rider." />
       <div className="grid gap-4 lg:grid-cols-2">
         {vendorOrders.map((order) => (
           <Card key={order.id} className="p-5">
-            <div className="flex items-start justify-between gap-3"><div><p className="font-mono text-xs font-bold text-slate-400">{order.id}</p><h3 className="mt-1 font-black text-slate-900">{order.customer}</h3></div><Status value={order.status} /></div>
+            <div className="flex items-start justify-between gap-3"><div><p className="font-mono text-xs font-bold text-slate-400">{order.id}</p><h3 className="mt-1 font-black text-slate-900">{order.customer}</h3></div><Status value={statuses[order.id]||order.status} /></div>
             <div className="mt-4 grid grid-cols-3 gap-3 text-xs"><div><p className="text-slate-400">Items</p><p className="mt-1 font-bold">{order.items}</p></div><div><p className="text-slate-400">Age</p><p className="mt-1 font-bold">{order.age}</p></div><div><p className="text-slate-400">Total</p><p className="mt-1 font-bold">{formatKES(order.amount)}</p></div></div>
-            <div className="mt-5 flex gap-2">{order.status === "NEW" ? <><button className="mp-btn-primary flex-1">Accept order</button><button className="mp-btn-secondary flex-1">Reject</button></> : <button className="mp-btn-secondary w-full">View fulfilment details <ChevronRight className="h-4 w-4" /></button>}</div>
+            <div className="mt-5 flex gap-2">{(statuses[order.id]||order.status) === "NEW" ? <><button className="mp-btn-primary flex-1" onClick={()=>change(order.id,"PREPARING")}>Accept order</button><button className="mp-btn-secondary flex-1" onClick={()=>change(order.id,"CANCELLED")}>Reject</button></> : (statuses[order.id]||order.status) === "PREPARING" ? <button className="mp-btn-primary w-full" onClick={()=>change(order.id,"RIDER_ASSIGNED")}>Ready for rider pickup</button> : <button className="mp-btn-secondary w-full" onClick={()=>setSelected(order.id)}>View fulfilment details <ChevronRight className="h-4 w-4" /></button>}</div>
           </Card>
         ))}
       </div>
+      <Modal open={!!selected} onClose={()=>setSelected(null)} title={`Fulfilment ${selected||""}`} description="Order details in demonstration mode."><div className="space-y-3"><p className="text-sm">Current stage: <strong>{statuses[selected||""]||vendorOrders.find(o=>o.id===selected)?.status||"UNKNOWN"}</strong></p><p className="text-sm text-slate-500">Payments, assignment and dispatch events require the backend service.</p><button className="mp-btn-secondary w-full" onClick={()=>setSelected(null)}>Close details</button></div></Modal>
     </div>
   );
 }

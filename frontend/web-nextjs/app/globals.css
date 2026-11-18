@@ -3,17 +3,32 @@
 @tailwind utilities;
 
 :root {
-  --background: 248 250 252;
+  /* MarketPay theme guide v1.0 — authoritative semantic design tokens */
+  --color-primary: #1B3A6B;
+  --color-primary-tint: #D6E0F0;
+  --color-action: #2563EB;
+  --color-action-tint: #DBEAFE;
+  --color-marketplace: #16A34A;
+  --color-marketplace-tint: #DCFCE7;
+  --color-warning: #D97706;
+  --color-warning-tint: #FEF3C7;
+  --color-danger: #DC2626;
+  --color-danger-tint: #FEE2E2;
+  --color-background: #FAFAF9;
+  --color-surface: #F0F4FF;
+  --color-text: #111827;
+
+  --background: 250 250 249;
   --surface: 255 255 255;
-  --ink: 16 42 67;
+  --ink: 17 24 39;
   --muted: 100 116 139;
   --line: 226 232 240;
-  --brand: 15 148 136;
-  --brand-dark: 15 118 110;
-  --navy: 16 42 67;
+  --brand: 37 99 235;
+  --brand-dark: 29 78 216;
+  --navy: 27 58 107;
   --danger: 220 38 38;
   --warning: 217 119 6;
-  --success: 5 150 105;
+  --success: 22 163 74;
 }
 
 * { box-sizing: border-box; }

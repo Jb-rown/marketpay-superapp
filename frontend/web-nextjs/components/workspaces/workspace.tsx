@@ -1,5 +1,7 @@
+import { GroupBuyConsumer, PriceAlertsConsumer, VendorPayouts, WholesaleShipments, RiderHistory, GovernmentRegions, AdminNotifications } from "@/components/workspaces/extended";
 import { AppShell } from "@/components/layout/app-shell";
 import { AdminWorkspace } from "@/components/workspaces/admin";
+import { PlannerWorkspace } from "@/components/workspaces/planner";
 import { ConsumerWorkspace } from "@/components/workspaces/consumer";
 import { GovernmentWorkspace } from "@/components/workspaces/government";
 import { RiderWorkspace } from "@/components/workspaces/rider";
@@ -9,7 +11,10 @@ import type { Role } from "@/lib/types";
 
 const copy: Record<Role, Record<string, { title: string; description: string }>> = {
   consumer: {
+    "price-alerts": { title: "Price Alerts", description: "Watch commodity prices and manage your targets." },
+    "group-buys": { title: "Group Buying", description: "Pool food purchases at wholesale prices." },
     overview: { title: "Marketplace", description: "Find affordable food, compare market prices and buy securely with escrow-backed payments." },
+    planner: { title: "Weekly Shopping Planner", description: "Plan food purchases against a budget using sample market prices." },
     cart: { title: "Cart & Checkout", description: "Review items, delivery estimates and payment options before placing your order." },
     orders: { title: "Orders & Delivery", description: "Track order status, rider progress, delivery confirmation, receipts and disputes." },
     wallet: { title: "Wallet", description: "Manage your KES balance, M-Pesa top-ups, transfers, withdrawals and transaction history." },
@@ -17,6 +22,7 @@ const copy: Record<Role, Record<string, { title: string; description: string }>>
     profile: { title: "Profile & Security", description: "Manage your personal details, notification preferences and account security." }
   },
   vendor: {
+    "settlements": { title: "Merchant Settlements", description: "Review merchant escrow releases and payment settlements." },
     overview: { title: "Retailer Dashboard", description: "Run your MarketPay storefront, monitor sales and respond to operational priorities." },
     products: { title: "Products", description: "Create, price, publish and maintain marketplace product listings." },
     inventory: { title: "Inventory", description: "Track stock levels and act on low-stock warnings before products sell out." },
@@ -26,6 +32,7 @@ const copy: Record<Role, Record<string, { title: string; description: string }>>
     import: { title: "Bulk Product Import", description: "Upload product catalogues by CSV with row-level validation feedback." }
   },
   wholesaler: {
+    "shipments": { title: "Sub-Shipments", description: "Track wholesale fulfilment in separate delivery batches." },
     overview: { title: "Wholesaler Dashboard", description: "Manage high-volume trading, bulk demand and supply performance." },
     deals: { title: "Bulk Deals", description: "Create and monitor wholesale offers with minimum quantities and volume pricing." },
     "group-buys": { title: "Group Buys", description: "Track pooled demand as participants work toward wholesale minimum order quantities." },
@@ -33,6 +40,7 @@ const copy: Record<Role, Record<string, { title: string; description: string }>>
     analytics: { title: "Volume Analytics", description: "Understand total volume, revenue, top buyers, deal fill rate and inventory turnover." }
   },
   rider: {
+    "history": { title: "Delivery History", description: "Search and export completed assignments." },
     overview: { title: "Rider Dashboard", description: "Control availability, receive assignments and monitor today's delivery workload." },
     assignments: { title: "Delivery Assignments", description: "Accept or decline delivery requests within the assignment response window." },
     delivery: { title: "Active Delivery", description: "Navigate the active route, update delivery progress and complete OTP confirmation." },
@@ -41,6 +49,7 @@ const copy: Record<Role, Record<string, { title: string; description: string }>>
     profile: { title: "Profile & Vehicle", description: "Maintain rider identity, vehicle details, KYC and availability information." }
   },
   government: {
+    "regions": { title: "Regional Comparison", description: "Compare public aggregated food prices across markets." },
     overview: { title: "Food Security Overview", description: "Monitor aggregated food price trends, market coverage and shortage signals without consumer PII." },
     prices: { title: "Price Monitor", description: "Explore validated commodity price observations and trends across monitored markets." },
     heatmap: { title: "Market Heatmap", description: "See geographic concentration of price pressure and emerging food-security risks." },
@@ -48,6 +57,7 @@ const copy: Record<Role, Record<string, { title: string; description: string }>>
     reports: { title: "Reports & Policy Insights", description: "Generate aggregated food-security briefs and policy-ready reporting outputs." }
   },
   admin: {
+    "notifications": { title: "Notification Campaigns", description: "Draft and manage communication templates." },
     overview: { title: "Platform Administration", description: "Operate users, risk, KYC, disputes, data quality and system health from one control plane." },
     users: { title: "User Management", description: "Search user accounts, review activity and manage account access." },
     kyc: { title: "KYC Review", description: "Review identity documents, OCR results and merchant or rider verification submissions." },
@@ -65,7 +75,14 @@ export function WorkspacePage({ role, section = "overview" }: { role: Role; sect
   const meta = copy[role][section] ?? copy[role].overview;
   let body: React.ReactNode;
 
-  if (role === "consumer") body = <ConsumerWorkspace section={section} />;
+  if (role === "consumer" && section === "group-buys") body = <GroupBuyConsumer />;
+  else if (role === "consumer" && section === "price-alerts") body = <PriceAlertsConsumer />;
+  else if (role === "vendor" && section === "settlements") body = <VendorPayouts />;
+  else if (role === "wholesaler" && section === "shipments") body = <WholesaleShipments />;
+  else if (role === "rider" && section === "history") body = <RiderHistory />;
+  else if (role === "government" && section === "regions") body = <GovernmentRegions />;
+  else if (role === "admin" && section === "notifications") body = <AdminNotifications />;
+  else if (role === "consumer") body = section === "planner" ? <PlannerWorkspace /> : <ConsumerWorkspace section={section} />;
   else if (role === "vendor") body = <VendorWorkspace section={section} />;
   else if (role === "wholesaler") body = <WholesalerWorkspace section={section} />;
   else if (role === "rider") body = <RiderWorkspace section={section} />;

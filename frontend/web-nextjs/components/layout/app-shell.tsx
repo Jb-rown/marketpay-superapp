@@ -147,6 +147,11 @@ export function AppShell({
           <NotificationPanel open={notificationsOpen} onClose={() => setNotificationsOpen(false)} />
         </header>
 
+        {process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_MARKETPAY_UI_PREVIEW !== "false" && (
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-900 sm:px-6" role="status">
+            UI Preview Mode · Demonstration content only · No real authentication or payments
+          </div>
+        )}
         <main className="mx-auto w-full max-w-[1600px] p-4 sm:p-6">
           <div className="mb-5">
             <div className="flex flex-wrap items-center gap-2">

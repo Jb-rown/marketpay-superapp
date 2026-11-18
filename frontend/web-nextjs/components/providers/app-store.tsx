@@ -25,25 +25,27 @@ const CART_KEY = "marketpay.demo.cart";
 
 export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartHydrated, setCartHydrated] = useState(false);
   const [notifications, setNotifications] = useState(seedNotifications);
   const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(true);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(CART_KEY);
-      if (raw) setCart(JSON.parse(raw));
+      if (raw) { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) setCart(parsed); }
     } catch {
       // Demo mode tolerates unavailable local storage.
-    }
+    } finally { setCartHydrated(true); }
   }, []);
 
   useEffect(() => {
+    if (!cartHydrated) return;
     try {
       localStorage.setItem(CART_KEY, JSON.stringify(cart));
     } catch {
       // Demo mode tolerates unavailable local storage.
     }
-  }, [cart]);
+  }, [cart, cartHydrated]);
 
   const value = useMemo<AppStore>(() => ({
     cart,

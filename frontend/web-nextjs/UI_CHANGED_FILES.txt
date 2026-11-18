@@ -1,0 +1,15 @@
+components/workspaces/extended.tsx                         NEW shared interactive role-specific screens
+components/workspaces/workspace.tsx                        UPDATED route dispatch and section descriptions
+lib/navigation.ts                                           UPDATED navigation for each of six roles
+app/consumer/group-buys/page.tsx                          NEW
+app/consumer/price-alerts/page.tsx                        NEW
+app/vendor/settlements/page.tsx                           NEW
+app/wholesaler/shipments/page.tsx                          NEW
+app/rider/history/page.tsx                                NEW
+app/government/regions/page.tsx                           NEW
+app/admin/notifications/page.tsx                          NEW
+components/workspaces/vendor.tsx                          UPDATED product draft and order actions
+tailwind.config.ts                                         UPDATED official theme action/navy palette
+app/globals.css                                            UPDATED theme tokens and defaults
+UI_DELIVERY_NOTES.md                                       UPDATED implementation & limitations
+UI_CHANGED_FILES.txt                                       NEW change inventory

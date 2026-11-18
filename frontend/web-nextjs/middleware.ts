@@ -1,57 +1,71 @@
-// middleware.ts - JWT validation + RBAC + rate limiting
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from "next/server";
 
-const roleRoutes: Record<string, (string | RegExp)[]> = {
-  consumer: ['/dashboard/consumer', '/marketplace', '/wallet'],
-  retailer: ['/dashboard/retailer', '/products', '/inventory'],
-  wholesaler: ['/dashboard/wholesaler', '/bulk-deals'],
-  rider: ['/dashboard/rider', '/deliveries'],
-  gov_analyst: ['/dashboard/gov-analyst', /^\/reports/],
-  admin: ['/dashboard/admin', '/users', '/system'],
-};
+/**
+ * MarketPay frontend access routing.
+ *
+ * Development UI Preview bypasses authentication so designers and testers can
+ * inspect every role workspace without requiring an API or JWT cookie.
+ * NEVER enable preview mode in a deployed production environment.
+ *
+ * Authorization of actual data and financial operations must be enforced by
+ * the backend/API gateway. Decoding a cookie here is only a routing hint; it
+ * is NOT JWT signature validation.
+ */
+const workspacePrefixes = ["consumer", "vendor", "wholesaler", "rider", "government", "admin"] as const;
+const publicRoutes = ["/", "/login", "/register", "/forgot-password", "/mfa", "/offline"];
 
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get('access_token')?.value;
-  const path = request.nextUrl.pathname;
-  
-  // Public routes (no auth required)
-  const publicRoutes = ['/login', '/register', '/forgot-password', '/ussd'];
-  if (publicRoutes.some(route => path.startsWith(route))) {
-    return NextResponse.next();
-  }
-  
-  // Check authentication
-  if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-  
-  // Decode JWT and check RBAC
+function previewEnabled(): boolean {
+  return process.env.NODE_ENV === "development" && process.env.MARKETPAY_UI_PREVIEW !== "false";
+}
+
+function normalizedRole(role: unknown): string | null {
+  if (typeof role !== "string") return null;
+  const aliases: Record<string, string> = {
+    retailer: "vendor",
+    gov_analyst: "government",
+  };
+  const normalized = aliases[role] ?? role;
+  return workspacePrefixes.some((prefix) => prefix === normalized) ? normalized : null;
+}
+
+function readRoleFromToken(token: string): string | null {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const userRole = payload.role;
-    
-    // Check if user has access to this route
-    const allowedRoutes = roleRoutes[userRole] || [];
-    const hasAccess = allowedRoutes.some(route => 
-      typeof route === 'string' ? path.startsWith(route) : route.test(path)
-    );
-    
-    if (!hasAccess && path !== '/dashboard') {
-      // Redirect to role-appropriate dashboard
-      return NextResponse.redirect(new URL(`/dashboard/${userRole}`, request.url));
-    }
-    
-    // Add user context to headers for downstream services
-    const response = NextResponse.next();
-    response.headers.set('X-User-ID', payload.user_id);
-    response.headers.set('X-User-Role', userRole);
-    return response;
+    const encoded = token.split(".")[1];
+    if (!encoded) return null;
+    const payload = JSON.parse(atob(encoded.replace(/-/g, "+").replace(/_/g, "/")));
+    return normalizedRole(payload.role);
   } catch {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return null;
   }
 }
 
+export function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  if (publicRoutes.includes(pathname)) return NextResponse.next();
+
+  // Preview is automatically enabled for `next dev`, unless explicitly disabled.
+  // It is impossible to activate via this setting in a production build.
+  if (previewEnabled()) return NextResponse.next();
+
+  const workspace = pathname.split("/")[1];
+  if (!workspacePrefixes.some((prefix) => prefix === workspace)) {
+    return NextResponse.next(); // Let Next.js handle unknown paths (404).
+  }
+
+  const accessToken = request.cookies.get("access_token")?.value;
+  if (!accessToken) return NextResponse.redirect(new URL("/login", request.url));
+
+  const role = readRoleFromToken(accessToken);
+  if (!role) return NextResponse.redirect(new URL("/login", request.url));
+
+  if (role !== "admin" && workspace !== role) {
+    return NextResponse.redirect(new URL(`/${role}`, request.url));
+  }
+
+  return NextResponse.next();
+}
+
 export const config = {
-  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ["/((?!api/|_next/|favicon.ico|.*\\..*).*)"],
 };
